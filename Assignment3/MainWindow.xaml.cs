@@ -17,6 +17,7 @@ using Windows.Devices.Geolocation;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Globalization;
 
 namespace Assignment3
 {
@@ -37,7 +38,11 @@ namespace Assignment3
         public string Name { get; set; }
         [MaxLength(255), Required]
         public string City { get; set; }
-        public List<Screening> Screenings { get; set; }
+        [Required]
+        public float Latitude { get; set; }
+        [Required]
+        public float Longitude { get; set; }
+        public List<Screening> Screenings { get; set; } 
     }
     public class Screening
     {
@@ -161,8 +166,8 @@ namespace Assignment3
             {
                 Margin = spacing
             };
-            var citiesTask = GetCitiesAsync();
-            var cities = await citiesTask;
+            var cities = await GetCitiesAsync();
+          
 
             foreach (string city in cities)
             {
@@ -270,8 +275,13 @@ namespace Assignment3
         // Get a list of all cities that have cinemas in them.
         private async Task<List<string>> GetCitiesAsync()
         {
-            var cities = await database.Cinemas.Select(c => c.City).Distinct().OrderBy(c => c).ToListAsync();
 
+            CultureInfo culture = new CultureInfo("sv-SE");
+
+            var cities = await database.Cinemas.Select(c => c.City).Distinct().ToListAsync();
+
+            //We had to order the list client-side to get å ä ö to work.
+            cities = cities.OrderBy(c => c, StringComparer.Create(culture, false)).ToList();
 
             return cities;
         }
@@ -309,7 +319,7 @@ namespace Assignment3
 
             Cinema cinema = database.Cinemas.First(n => n.Name == (string)cinemaListBox.SelectedItem);
 
-            var screenings = await database.Screenings.Where(s => s.Cinema == cinema).Include(s => s.Movie).ToListAsync();
+            var screenings = await database.Screenings.Where(s => s.Cinema == cinema).Include(s => s.Movie).OrderBy(s => s.Time).ToListAsync();
             
 
 
@@ -393,8 +403,8 @@ namespace Assignment3
         {
             // First check if we already have a ticket for this screening.
 
-            Screening screening = database.Screenings.First(s => s.ID == screeningID);
-            bool hasTicket = database.Tickets.Where(t => t.Screening == screening).Any();
+            Screening screening = await database.Screenings.FirstAsync(s => s.ID == screeningID);
+            bool hasTicket = await database.Tickets.Where(t => t.Screening == screening).AnyAsync();
 
             // If we don't, add it.
             if (!hasTicket)
@@ -419,7 +429,9 @@ namespace Assignment3
                 .Include(t => t.Screening)
                 .ThenInclude(s => s.Movie)
                 .Include(t => t.Screening)
-                .ThenInclude(s => s.Cinema).ToListAsync();
+                .ThenInclude(s => s.Cinema)
+                .OrderBy(t => t.TimePurchased)
+                .ToListAsync();
 
             var tickets = await ticketsTask;
 
