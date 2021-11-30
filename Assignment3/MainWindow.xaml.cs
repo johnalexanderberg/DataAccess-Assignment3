@@ -38,9 +38,9 @@ namespace Assignment3
         public string Name { get; set; }
         [MaxLength(255), Required]
         public string City { get; set; }
-        [Required]
+        [Required, Column(TypeName = "float")]
         public float Latitude { get; set; }
-        [Required]
+        [Required, Column(TypeName = "float")]
         public float Longitude { get; set; }
         public List<Screening> Screenings { get; set; } 
     }
@@ -79,7 +79,7 @@ namespace Assignment3
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            options.UseSqlServer(@"Data Source=(local)\SQLEXPRESS;Initial Catalog=DataAccessGUIAssignment;Integrated Security=True");
+            options.UseSqlServer(@"Data Source=(local)\SQLEXPRESS01;Initial Catalog=DataAccessGUIAssignment;Integrated Security=True");
         }
     }
 
