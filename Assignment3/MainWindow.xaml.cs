@@ -161,13 +161,21 @@ namespace Assignment3
             };
             AddToGrid(grid, title, 0, 0);
 
+            //Adding the option of within 100km
+            var cinemaWithinOnehundredKm = new TextBlock
+            {
+                Text = "Cinemas within 100km",
+                Margin = spacing
+            };
+
             // Create the dropdown of cities.
             cityComboBox = new ComboBox
             {
                 Margin = spacing
             };
             var cities = await GetCitiesAsync();
-          
+
+            cityComboBox.Items.Add(cinemaWithinOnehundredKm.Text);
 
             foreach (string city in cities)
             {
@@ -299,6 +307,9 @@ namespace Assignment3
         {
             cinemaListBox.Items.Clear();
 
+            //var cinemasOnehundredKmTask = GetCinemasWithinOnehundredKm();
+            //var cinemasOnehundredKm = await cinemasOnehundredKmTask;
+
             var cinemasTask = GetCinemasInSelectedCity();
             var cinemas = await cinemasTask;
 
@@ -307,6 +318,14 @@ namespace Assignment3
                 cinemaListBox.Items.Add(cinema);
             }
         }
+
+        //private async Task<double> GetCinemasWithinOnehundredKm()
+        //{
+        //    var current = await new Geolocator().GetGeopositionAsync();
+
+        //    var distance = Geography.Distance(current, withinOnehundred);
+        //    return distance;
+        //}
 
         // Update the GUI with the screenings in the currently selected cinema.
         private async Task UpdateScreeningListAsync()
