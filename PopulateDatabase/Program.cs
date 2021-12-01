@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-//using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -15,9 +14,6 @@ namespace PopulateDatabase
         public static void Main()
         {
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
-
-            using var connection = new SqlConnection(@"Server=(local)\SQLExpress;Database=DataAccessGUIAssignment;Integrated Security=SSPI;");
-            connection.Open();
 
             database = new AppDbContext();
 

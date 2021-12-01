@@ -42,7 +42,7 @@ namespace Assignment3
         public float Latitude { get; set; }
         [Required, Column(TypeName = "float")]
         public float Longitude { get; set; }
-        public List<Screening> Screenings { get; set; } 
+        public List<Screening> Screenings { get; set; }
     }
     public class Screening
     {
@@ -79,7 +79,7 @@ namespace Assignment3
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            options.UseSqlServer(@"Data Source=(local)\SQLEXPRESS01;Initial Catalog=DataAccessGUIAssignment;Integrated Security=True");
+            options.UseSqlServer(@"Data Source=(local)\SQLEXPRESS;Initial Catalog=DataAccessGUIAssignment;Integrated Security=True");
         }
     }
 
@@ -135,7 +135,7 @@ namespace Assignment3
             AddToGrid(grid, cinemaGui, 0, 0);
             AddToGrid(grid, screeningGui, 0, 1);
             AddToGrid(grid, ticketGui, 0, 2);
-          
+
         }
 
         // Create the cinema part of the GUI: the left column.
@@ -185,7 +185,7 @@ namespace Assignment3
             AddToGrid(grid, cityComboBox, 1, 0);
 
             // When we select a city, update the GUI with the cinemas in the currently selected city.
-            cityComboBox.SelectionChanged += async(sender, e) =>
+            cityComboBox.SelectionChanged += async (sender, e) =>
             {
                 await UpdateCinemaListAsync();
 
@@ -201,7 +201,7 @@ namespace Assignment3
             await UpdateCinemaListAsync();
 
             // When we select a cinema, update the GUI with the screenings in the currently selected cinema.
-            cinemaListBox.SelectionChanged += async(sender, e) =>
+            cinemaListBox.SelectionChanged += async (sender, e) =>
             {
                 await UpdateScreeningListAsync();
             };
@@ -298,7 +298,7 @@ namespace Assignment3
         private Task<List<string>> GetCinemasInSelectedCity()
         {
             string currentCity = (string)cityComboBox.SelectedItem;
-            var cinemas = database.Cinemas.Where(c => c.City == currentCity).Select(c => c.Name).OrderBy(c => c).ToListAsync();         
+            var cinemas = database.Cinemas.Where(c => c.City == currentCity).Select(c => c.Name).OrderBy(c => c).ToListAsync();
             return cinemas;
         }
 
@@ -307,25 +307,59 @@ namespace Assignment3
         {
             cinemaListBox.Items.Clear();
 
-            //var cinemasOnehundredKmTask = GetCinemasWithinOnehundredKm();
-            //var cinemasOnehundredKm = await cinemasOnehundredKmTask;
+            List<string> cinemas;
 
-            var cinemasTask = GetCinemasInSelectedCity();
-            var cinemas = await cinemasTask;
+            if (cityComboBox.SelectedIndex == 0)
+            {
+                cinemas = await GetCinemasWithinOnehundredKm();
+            } else
+            {
+                cinemas = await GetCinemasInSelectedCity();
+            }
+
 
             foreach (string cinema in cinemas)
             {
                 cinemaListBox.Items.Add(cinema);
             }
+
+      
         }
 
-        //private async Task<double> GetCinemasWithinOnehundredKm()
-        //{
-        //    var current = await new Geolocator().GetGeopositionAsync();
+        private async Task<List<string>> GetCinemasWithinOnehundredKm()
+        {
+            var currentPosition = await new Geolocator().GetGeopositionAsync();
 
-        //    var distance = Geography.Distance(current, withinOnehundred);
-        //    return distance;
-        //}
+            var currentCoordinate = new Coordinate()
+            {
+                Latitude = currentPosition.Coordinate.Latitude,
+                Longitude = currentPosition.Coordinate.Longitude
+            };
+
+
+            var cinemas = await database.Cinemas.ToListAsync();
+            var cinemasWithinOneHundredKm = new List<Cinema>();
+
+            foreach (Cinema cinema in cinemas)
+            {
+                Coordinate cinemaCoordinate = new Coordinate()
+                {
+                    Latitude = cinema.Latitude,
+                    Longitude = cinema.Longitude
+                };
+
+
+                var distance = Geography.Distance(currentCoordinate, cinemaCoordinate);
+                if (distance <= 100000)
+                {
+                    cinemasWithinOneHundredKm.Add(cinema);
+                };
+                
+            }
+
+            return cinemasWithinOneHundredKm.Select(c => c.Name).ToList();
+
+        }
 
         // Update the GUI with the screenings in the currently selected cinema.
         private async Task UpdateScreeningListAsync()
@@ -339,7 +373,7 @@ namespace Assignment3
             Cinema cinema = database.Cinemas.First(n => n.Name == (string)cinemaListBox.SelectedItem);
 
             var screenings = await database.Screenings.Where(s => s.Cinema == cinema).Include(s => s.Movie).OrderBy(s => s.Time).ToListAsync();
-            
+
 
 
             // For each screening:
@@ -358,7 +392,7 @@ namespace Assignment3
                 int screeningID = screening.ID;
 
                 // When we click a screening, buy a ticket for it and update the GUI with the latest list of tickets.
-                button.Click += async(sender, e) =>
+                button.Click += async (sender, e) =>
                 {
                     await BuyTicketAsync(screeningID);
                 };
@@ -470,7 +504,7 @@ namespace Assignment3
                 int ticketID = ticket.ID;
 
                 // When we click a ticket, remove it and update the GUI with the latest list of tickets.
-                button.Click += async(sender, e) =>
+                button.Click += async (sender, e) =>
                 {
                     await RemoveTicket(ticketID);
                 };
