@@ -16,9 +16,6 @@ namespace PopulateDatabase
         {
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
-            using var connection = new SqlConnection(@"Server=(local)\SQLExpress;Database=DataAccessGUIAssignment;Integrated Security=SSPI;");
-            connection.Open();
-
             database = new AppDbContext();
 
             // Clear the database.
