@@ -81,6 +81,15 @@ namespace Assignment3
         {
             options.UseSqlServer(@"Data Source=(local)\SQLEXPRESS;Initial Catalog=DataAccessGUIAssignment;Integrated Security=True");
         }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            builder.Entity<Cinema>()
+                .HasIndex(c => c.Name)
+                .IsUnique();
+        }
+
+
     }
 
     public partial class MainWindow : Window
