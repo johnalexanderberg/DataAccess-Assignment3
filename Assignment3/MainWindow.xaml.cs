@@ -94,21 +94,24 @@ namespace Assignment3
         private StackPanel screeningPanel;
         private StackPanel ticketPanel;
 
-        // An SQL connection that we will keep open for the entire program.
         private AppDbContext database;
+        private Windows.Foundation.IAsyncOperation<Geoposition> geoPositionOperation;
+        private Geoposition currentPosition;
+        
 
 
 
 
         public MainWindow()
-        {
+        {   
             InitializeComponent();
-
             Start();
         }
 
         private async void Start()
         {
+            //We start the operation to retrieve location immediately, and await the result when we need it to display the closest cinemas.
+            geoPositionOperation = new Geolocator().GetGeopositionAsync();
 
             database = new AppDbContext();
 
@@ -128,18 +131,25 @@ namespace Assignment3
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
 
-            var cinemaGui = await CreateCinemaGUI();
-            var screeningGui = await CreateScreeningGUIAsync();
-            var ticketGui = await CreateTicketGUIAsync();
+            // The cinemaGui needs to be loaded before the other GUI elements.
+            var cinemaGui = await CreateCinemaGUIAsync();
+
+            // Now the other GUI elements can be loaded async.
+            var screeningTicketGuiTasks = new Task<UIElement>[] {
+            CreateScreeningGUIAsync(),
+            CreateTicketGUIAsync()
+            };
+
+            var screeningTicketGuiResult = await Task.WhenAll(screeningTicketGuiTasks);
 
             AddToGrid(grid, cinemaGui, 0, 0);
-            AddToGrid(grid, screeningGui, 0, 1);
-            AddToGrid(grid, ticketGui, 0, 2);
+            AddToGrid(grid, screeningTicketGuiResult[0], 0, 1);
+            AddToGrid(grid, screeningTicketGuiResult[1], 0, 2);
 
         }
 
         // Create the cinema part of the GUI: the left column.
-        private async Task<UIElement> CreateCinemaGUI()
+        private async Task<UIElement> CreateCinemaGUIAsync()
         {
             var grid = new Grid
             {
@@ -181,7 +191,8 @@ namespace Assignment3
             {
                 cityComboBox.Items.Add(city);
             }
-            cityComboBox.SelectedIndex = 0;
+            //We set it to -1 so the GUI can load directly. Then Geolocation should be retrieved and ready when user selects closest cinemas.
+            cityComboBox.SelectedIndex = -1;
             AddToGrid(grid, cityComboBox, 1, 0);
 
             // When we select a city, update the GUI with the cinemas in the currently selected city.
@@ -288,14 +299,14 @@ namespace Assignment3
 
             var cities = await database.Cinemas.Select(c => c.City).Distinct().ToListAsync();
 
-            //We had to order the list client-side to get å ä ö to work.
+            //We use the StringComparer to deal with "å, ä, ö" correctly when sorting. We had to do the sorting client-side for it to work.
             cities = cities.OrderBy(c => c, StringComparer.Create(culture, false)).ToList();
 
             return cities;
         }
 
         // Get a list of all cinemas in the currently selected city.
-        private Task<List<string>> GetCinemasInSelectedCity()
+        private Task<List<string>> GetCinemasInSelectedCityAsync()
         {
             string currentCity = (string)cityComboBox.SelectedItem;
             var cinemas = database.Cinemas.Where(c => c.City == currentCity).Select(c => c.Name).OrderBy(c => c).ToListAsync();
@@ -307,18 +318,18 @@ namespace Assignment3
         {
             cinemaListBox.Items.Clear();
 
-            List<string> cinemas;
+            List<string> cinemaNames;
 
             if (cityComboBox.SelectedIndex == 0)
             {
-                cinemas = await GetCinemasWithinOnehundredKm();
+                cinemaNames = await GetCinemasWithinOnehundredKmAsync();
             } else
             {
-                cinemas = await GetCinemasInSelectedCity();
+                cinemaNames = await GetCinemasInSelectedCityAsync();
             }
 
 
-            foreach (string cinema in cinemas)
+            foreach (string cinema in cinemaNames)
             {
                 cinemaListBox.Items.Add(cinema);
             }
@@ -326,9 +337,14 @@ namespace Assignment3
       
         }
 
-        private async Task<List<string>> GetCinemasWithinOnehundredKm()
+        private async Task<List<string>> GetCinemasWithinOnehundredKmAsync()
         {
-            var currentPosition = await new Geolocator().GetGeopositionAsync();
+            //we only need to await position once
+            if (currentPosition == null)
+            {
+                currentPosition = await geoPositionOperation;
+            }
+            
 
             var currentCoordinate = new Coordinate()
             {
@@ -372,7 +388,7 @@ namespace Assignment3
 
             Cinema cinema = database.Cinemas.First(n => n.Name == (string)cinemaListBox.SelectedItem);
 
-            var screenings = await database.Screenings.Where(s => s.Cinema == cinema).Include(s => s.Movie).OrderBy(s => s.Time).ToListAsync();
+            List<Screening> screenings = await database.Screenings.Where(s => s.Cinema == cinema).Include(s => s.Movie).OrderBy(s => s.Time).ToListAsync();
 
 
 
@@ -486,7 +502,7 @@ namespace Assignment3
                 .OrderBy(t => t.TimePurchased)
                 .ToListAsync();
 
-            var tickets = await ticketsTask;
+            List<Ticket> tickets = await ticketsTask;
 
             // For each ticket:
             foreach (Ticket ticket in tickets)
